@@ -10,6 +10,7 @@ import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 import 'package:otp_grab/configs.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
+import 'package:readsms/readsms.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,73 +58,60 @@ void onStart(ServiceInstance service) async {
   });
 
   //Some code for background task
-  Timer.periodic(const Duration(seconds: 10), (timer) async {
-    if (service is AndroidServiceInstance) {
-      service.setForegroundNotificationInfo(
-        title: "App in background...",
-        content: "Update ${DateTime.now()}",
-      );
-    }
-    service.invoke(
-      'update',
-      {
-        "current_date": DateTime.now().toIso8601String(),
-      },
-    );
-
-    // send data
-    var permission = await Permission.sms.status;
-
-    if (permission.isGranted) {
-      final SmsQuery _query = SmsQuery();
-
-      final messages = await _query.querySms(
-        kinds: [SmsQueryKind.inbox, SmsQueryKind.sent, SmsQueryKind.draft],
-        address: Configs.messageAddress,
-        count: Configs.messagesCount,
-      );
-
-      debugPrint('sms inbox messages: ${messages.length}');
-
-      sendOTPToHook(messages);
-    }
-  });
+  listenToIncomingSms();
 }
 
-void sendOTPToHook(List<SmsMessage> messages) async {
-  if (messages.isNotEmpty) {
-    for (var message in messages) {
-      if (message.body!.contains(Configs.filterWords)) {
-        // extract the otp code from tring
-        int otpCode = int.parse(message.body!.replaceAll(RegExp('[^0-9]'), ''));
+void listenToIncomingSms() async {
+  var permission = await Permission.sms.status;
 
-        // add json header
-        var headers = {'Content-Type': 'application/json'};
+  if (permission.isGranted) {
+    final _smsReader = Readsms();
 
-        // init request with method and url
-        var request = http.Request(
-          'POST',
-          Uri.parse(Configs.botDash),
-        );
+    // read sms
+    _smsReader.read();
 
-        // add body to request
-        request.body = json.encode({
-          "otpCode": otpCode.toString(),
-          "timer": message.date.toString(),
-        });
+    _smsReader.smsStream.listen(
+      (event) {
+        
+        if (event.sender == Configs.messageAddress &&
+            event.body.contains(Configs.filterWords)) {
+          // extract the otp code from tring
+          String otpCode =
+              event.body.replaceAll(RegExp('[^0-9]'), '').toString();
 
-        // add header
-        request.headers.addAll(headers);
+          String timer = event.timeReceived.toString();
 
-        // make http request
-        http.StreamedResponse response = await request.send();
-
-        // print response status
-        print('Response status: ${response.statusCode}');
-        sleep(const Duration(seconds: 1));
-      }
-    }
+          pingBOTBackend(otpCode, timer);
+        }
+      },
+    );
   }
+}
+
+void pingBOTBackend(String otpCode, String timer) async {
+  // add json header
+  var headers = {'Content-Type': 'application/json'};
+
+  // init request with method and url
+  var request = http.Request(
+    'POST',
+    Uri.parse(Configs.botDash),
+  );
+
+  // add body to request
+  request.body = json.encode({
+    "otpCode": otpCode,
+    "timer": timer,
+  });
+
+  // add header
+  request.headers.addAll(headers);
+
+  // make http request
+  http.StreamedResponse response = await request.send();
+
+  // print response status
+  print('Response status: ${response.statusCode}');
 }
 
 class MyApp extends StatefulWidget {

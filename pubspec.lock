@@ -102,14 +102,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.0.0"
-  flutter_sms_inbox:
-    dependency: "direct main"
-    description:
-      name: flutter_sms_inbox
-      sha256: fc1c069225916418bcd4e8b4999d2f5e1216db3394c8b86c8440a5a5b0ec4bd2
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.3"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -264,6 +256,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
+  readsms:
+    dependency: "direct main"
+    description:
+      name: readsms
+      sha256: da4e743e7a667a649195df667141e16f197461927a8cd6efed956ae312c86de0
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.0+3"
   sky_engine:
     dependency: transitive
     description: flutter
